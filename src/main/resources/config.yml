@@ -1,0 +1,88 @@
+
+# ==========================================
+# SpearEvolution - Main Configuration
+# Author: AimVortex
+# Paper: 1.21.11
+# ==========================================
+
+settings:
+  give-spear-on-first-join: true
+  save-player-data: true
+  prevent-spear-drop-on-death: true
+  keep-spear-progression-after-death: true
+
+  prevent-crafting: true
+  prevent-enchanting-table: true
+  prevent-anvil-enchanting: true
+
+  allow-only-evolution-spear: true
+
+messages:
+  prefix: "&8[&bSpearEvolution&8] "
+  first-spear: "&aYou received your Wooden Spear!"
+  spear-upgraded: "&bYour spear has evolved to &f%tier%&b!"
+  kill-progress: "&7Spear kills: &e%kills%&7/&e%required%"
+  no-craft: "&cSpearEvolution spears cannot be crafted!"
+  no-enchant: "&cYou cannot enchant your evolution spear!"
+  no-drop: "&cYour evolution spear is protected!"
+
+progression:
+  # Total player kills required for each material evolution.
+  tiers:
+    wooden:
+      required-kills: 0
+      material: WOODEN_SPEAR
+
+    stone:
+      required-kills: 4
+      material: STONE_SPEAR
+
+    diamond:
+      required-kills: 7
+      material: DIAMOND_SPEAR
+
+    netherite:
+      required-kills: 14
+      material: NETHERITE_SPEAR
+
+  # Enchantment milestones are based on total spear kills.
+  enchantment-milestones:
+    - kills: 1
+      sharpness: 1
+      loyalty: 1
+
+    - kills: 5
+      sharpness: 1
+      loyalty: 1
+
+    - kills: 8
+      sharpness: 2
+      loyalty: 2
+
+    - kills: 17
+      sharpness-increase: 1
+      loyalty-increase: 1
+
+powers:
+  enabled: true
+
+  lightning-spear:
+    enabled: false
+    unlock-kills: 20
+    cooldown-seconds: 30
+
+  flame-spear:
+    enabled: false
+    unlock-kills: 30
+    cooldown-seconds: 25
+
+  wind-spear:
+    enabled: false
+    unlock-kills: 40
+    cooldown-seconds: 20
+
+  shadow-spear:
+    enabled: false
+    unlock-kills: 50
+    cooldown-seconds: 45
+    
