@@ -1,0 +1,7 @@
+
+name: SpearEvolution
+version: 1.0.0
+main: dev.aimvortex.spearevolution.SpearEvolution
+api-version: '1.21'
+author: AimVortex
+description: Kill-based spear evolution and custom abilities for Paper.
