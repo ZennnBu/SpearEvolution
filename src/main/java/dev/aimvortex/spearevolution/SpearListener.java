@@ -3,16 +3,18 @@ package dev.aimvortex.spearevolution;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.enchantment.EnchantItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
-import org.bukkit.event.player.PlayerEnchantItemEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -58,7 +60,6 @@ public final class SpearListener implements Listener {
         );
 
         ItemStack spear = spearManager.createSpear(0);
-
         player.getInventory().addItem(spear);
 
         player.sendMessage(color(
@@ -82,7 +83,8 @@ public final class SpearListener implements Listener {
             return;
         }
 
-        ItemStack weapon = killer.getInventory().getItemInMainHand();
+        ItemStack weapon =
+                killer.getInventory().getItemInMainHand();
 
         if (!spearManager.isEvolutionSpear(weapon)) {
             return;
@@ -98,14 +100,12 @@ public final class SpearListener implements Listener {
         killer.getInventory().setItemInMainHand(upgradedSpear);
 
         String newTier = spearManager.getTier(kills);
+
         String oldTier = weapon.getItemMeta()
                 .getPersistentDataContainer()
                 .get(
-                        new org.bukkit.NamespacedKey(
-                                plugin,
-                                "spear_tier"
-                        ),
-                        org.bukkit.persistence.PersistentDataType.STRING
+                        new NamespacedKey(plugin, "spear_tier"),
+                        PersistentDataType.STRING
                 );
 
         if (oldTier == null || !oldTier.equals(newTier)) {
@@ -211,7 +211,7 @@ public final class SpearListener implements Listener {
     }
 
     @EventHandler
-    public void onEnchant(PlayerEnchantItemEvent event) {
+    public void onEnchant(EnchantItemEvent event) {
         if (!plugin.getConfig().getBoolean(
                 "settings.prevent-enchanting-table",
                 true
