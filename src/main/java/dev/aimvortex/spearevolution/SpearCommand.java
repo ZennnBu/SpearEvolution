@@ -1,33 +1,24 @@
 
+
 package dev.aimvortex.spearevolution;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.LivingEntity;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
-import org.bukkit.util.Vector;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.List;
 
-public final class SpearPowerManager implements Listener {
+public final class SpearCommand implements CommandExecutor, TabCompleter {
 
     private final SpearEvolution plugin;
     private final SpearManager spearManager;
 
-    private final Map<String, Long> cooldowns = new HashMap<>();
-
-    public SpearPowerManager(
+    public SpearCommand(
             SpearEvolution plugin,
             SpearManager spearManager
     ) {
@@ -35,246 +26,122 @@ public final class SpearPowerManager implements Listener {
         this.spearManager = spearManager;
     }
 
-    @EventHandler
-    public void onSpearUse(PlayerInteractEvent event) {
-        if (event.getHand() != EquipmentSlot.HAND) {
+    @Override
+    public boolean onCommand(
+            CommandSender sender,
+            Command command,
+            String label,
+            String[] args
+    ) {
+        if (!sender.hasPermission("spearevolution.admin")) {
+            sender.sendMessage(color("&cYou don't have permission."));
+            return true;
+        }
+
+        if (args.length == 0) {
+            sendHelp(sender);
+            return true;
+        }
+
+        switch (args[0].toLowerCase()) {
+            case "give" -> giveSpear(sender, args);
+            case "kills" -> setKills(sender, args);
+            case "reload" -> reloadConfig(sender);
+            default -> sendHelp(sender);
+        }
+
+        return true;
+    }
+
+    private void giveSpear(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(color("&cUsage: /spear give <player>"));
             return;
         }
 
-        Action action = event.getAction();
+        Player target = Bukkit.getPlayerExact(args[1]);
 
-        if (action != Action.RIGHT_CLICK_AIR
-                && action != Action.RIGHT_CLICK_BLOCK) {
+        if (target == null) {
+            sender.sendMessage(color("&cPlayer not found."));
             return;
         }
 
-        if (!plugin.getConfig().getBoolean(
-                "powers.enabled",
-                true
-        )) {
-            return;
-        }
+        int kills = plugin.getPlayerDataManager()
+                .getKills(target.getUniqueId());
 
-        Player player = event.getPlayer();
-        ItemStack item = event.getItem();
+        ItemStack spear = spearManager.createSpear(kills);
 
-        if (!spearManager.isEvolutionSpear(item)) {
-            return;
-        }
+        target.getInventory().addItem(spear);
 
-        int kills = spearManager.getSpearKills(item);
-
-        String power = getUnlockedPower(kills);
-
-        if (power == null) {
-            return;
-        }
-
-        event.setCancelled(true);
-
-        if (!isReady(player, power)) {
-            player.sendMessage(color(
-                    "&cPower is on cooldown!"
-            ));
-            return;
-        }
-
-        usePower(player, power);
-        startCooldown(player, power);
-
-        player.sendMessage(color(
-                "&b&lSpear Power &8» &f"
-                        + capitalize(power)
-                        + " &aactivated!"
+        sender.sendMessage(color(
+                "&aSpear given to &f" + target.getName()
         ));
     }
 
-    private String getUnlockedPower(int kills) {
-        String[] powers = {
-                "lightning-spear",
-                "flame-spear",
-                "wind-spear",
-                "shadow-spear"
-        };
+    private void setKills(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(color(
+                    "&cUsage: /spear kills <player> <amount>"
+            ));
+            return;
+        }
 
-        String unlocked = null;
+        Player target = Bukkit.getPlayerExact(args[1]);
 
-        for (String power : powers) {
-            String path = "powers." + power;
+        if (target == null) {
+            sender.sendMessage(color("&cPlayer not found."));
+            return;
+        }
 
-            if (!plugin.getConfig().getBoolean(
-                    path + ".enabled",
-                    false
-            )) {
-                continue;
-            }
+        int kills;
 
-            int requiredKills = plugin.getConfig().getInt(
-                    path + ".unlock-kills",
-                    Integer.MAX_VALUE
+        try {
+            kills = Integer.parseInt(args[2]);
+        } catch (NumberFormatException exception) {
+            sender.sendMessage(color(
+                    "&cKills must be a valid number."
+            ));
+            return;
+        }
+
+        if (kills < 0) {
+            sender.sendMessage(color("&cKills cannot be negative."));
+            return;
+        }
+
+        plugin.getPlayerDataManager().setKills(
+                target.getUniqueId(),
+                kills
+        );
+
+        ItemStack current =
+                target.getInventory().getItemInMainHand();
+
+        if (spearManager.isEvolutionSpear(current)) {
+            target.getInventory().setItemInMainHand(
+                    spearManager.createSpear(kills)
             );
-
-            if (kills >= requiredKills) {
-                unlocked = power;
-            }
         }
 
-        return unlocked;
+        sender.sendMessage(color(
+                "&aSet &f" + target.getName()
+                + "&a's spear kills to &f" + kills
+        ));
     }
 
-    private void usePower(Player player, String power) {
-        switch (power) {
-            case "lightning-spear" -> lightningPower(player);
-            case "flame-spear" -> flamePower(player);
-            case "wind-spear" -> windPower(player);
-            case "shadow-spear" -> shadowPower(player);
-            default -> {
-            }
-        }
+    private void reloadConfig(CommandSender sender) {
+        plugin.reloadConfig();
+
+        sender.sendMessage(color(
+                "&aSpearEvolution configuration reloaded!"
+        ));
     }
 
-    private void lightningPower(Player player) {
-        LivingEntity target = getTarget(player);
-
-        if (target == null) {
-            player.sendMessage(color(
-                    "&cLook at a target to use Lightning Spear!"
-            ));
-            return;
-        }
-
-        Location location = target.getLocation();
-
-        player.getWorld().strikeLightningEffect(location);
-
-        target.damage(4.0, player);
-    }
-
-    private void flamePower(Player player) {
-        LivingEntity target = getTarget(player);
-
-        if (target == null) {
-            player.sendMessage(color(
-                    "&cLook at a target to use Flame Spear!"
-            ));
-            return;
-        }
-
-        target.setFireTicks(60);
-        target.damage(2.0, player);
-    }
-
-    private void windPower(Player player) {
-        Vector direction = player.getLocation()
-                .getDirection()
-                .normalize();
-
-        player.setVelocity(
-                direction.multiply(1.5)
-                        .setY(0.8)
-        );
-
-        for (Entity entity : player.getNearbyEntities(
-                5.0, 3.0, 5.0
-        )) {
-            if (!(entity instanceof LivingEntity target)) {
-                continue;
-            }
-
-            if (target.equals(player)) {
-                continue;
-            }
-
-            Vector push = target.getLocation()
-                    .toVector()
-                    .subtract(player.getLocation().toVector())
-                    .normalize()
-                    .multiply(1.2);
-
-            push.setY(0.5);
-
-            target.setVelocity(push);
-        }
-    }
-
-    private void shadowPower(Player player) {
-        player.addPotionEffect(
-                new PotionEffect(
-                        PotionEffectType.INVISIBILITY,
-                        100,
-                        0,
-                        false,
-                        false,
-                        true
-                )
-        );
-
-        player.addPotionEffect(
-                new PotionEffect(
-                        PotionEffectType.SPEED,
-                        100,
-                        1,
-                false,
-                false,
-                true
-                )
-        );
-    }
-
-    private LivingEntity getTarget(Player player) {
-        Entity target = player.getWorld().rayTraceEntities(
-                player.getEyeLocation(),
-                player.getEyeLocation().getDirection(),
-                20.0,
-                0.5,
-                entity -> entity instanceof LivingEntity
-                        && !entity.equals(player)
-        ) == null
-                ? null
-                : player.getWorld().rayTraceEntities(
-                        player.getEyeLocation(),
-                        player.getEyeLocation().getDirection(),
-                        20.0,
-                        0.5,
-                        entity -> entity instanceof LivingEntity
-                                && !entity.equals(player)
-                ).getHitEntity();
-
-        if (target instanceof LivingEntity living) {
-            return living;
-        }
-
-        return null;
-    }
-
-    private String cooldownKey(UUID uuid, String power) {
-        return uuid + ":" + power;
-    }
-
-    private boolean isReady(Player player, String power) {
-        String path = "powers." + power;
-
-        int cooldownSeconds = plugin.getConfig().getInt(
-                path + ".cooldown-seconds",
-                30
-        );
-
-        long cooldownMillis = cooldownSeconds * 1000L;
-
-        long lastUsed = cooldowns.getOrDefault(
-                cooldownKey(player.getUniqueId(), power),
-                0L
-        );
-
-        return System.currentTimeMillis() - lastUsed
-                >= cooldownMillis;
-    }
-
-    private void startCooldown(Player player, String power) {
-        cooldowns.put(
-                cooldownKey(player.getUniqueId(), power),
-                System.currentTimeMillis()
-        );
+    private void sendHelp(CommandSender sender) {
+        sender.sendMessage(color("&b&lSpearEvolution Commands"));
+        sender.sendMessage(color("&f/spear give <player>"));
+        sender.sendMessage(color("&f/spear kills <player> <amount>"));
+        sender.sendMessage(color("&f/spear reload"));
     }
 
     private String color(String message) {
@@ -284,12 +151,37 @@ public final class SpearPowerManager implements Listener {
         );
     }
 
-    private String capitalize(String text) {
-        if (text == null || text.isEmpty()) {
-            return text;
+    @Override
+    public List<String> onTabComplete(
+            CommandSender sender,
+            Command command,
+            String alias,
+            String[] args
+    ) {
+        if (!sender.hasPermission("spearevolution.admin")) {
+            return List.of();
         }
 
-        return text.substring(0, 1).toUpperCase()
-                + text.substring(1).toLowerCase();
+        if (args.length == 1) {
+            return List.of("give", "kills", "reload")
+                    .stream()
+                    .filter(value -> value.startsWith(
+                            args[0].toLowerCase()
+                    ))
+                    .toList();
+        }
+
+        if (args.length == 2
+                && !args[0].equalsIgnoreCase("reload")) {
+            return Bukkit.getOnlinePlayers()
+                    .stream()
+                    .map(Player::getName)
+                    .filter(name -> name.toLowerCase().startsWith(
+                            args[1].toLowerCase()
+                    ))
+                    .toList();
+        }
+
+        return List.of();
     }
-              }
+}
