@@ -5,3 +5,15 @@ main: dev.aimvortex.spearevolution.SpearEvolution
 api-version: '1.21'
 author: AimVortex
 description: Kill-based spear evolution and custom abilities for Paper.
+
+commands:
+  spear:
+    description: Manage SpearEvolution spears.
+    usage: /spear <give|kills|reload>
+    permission: spearevolution.admin
+
+permissions:
+  spearevolution.admin:
+    description: Allows managing SpearEvolution.
+    default: op
+    
